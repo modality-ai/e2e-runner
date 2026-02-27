@@ -112,15 +112,18 @@ version: "1.0"
       expect(() => ConfigLoader.parseYaml(yaml)).toThrow();
     });
 
-    it('should throw error on invalid command type', () => {
+    it('should accept any command type (generic schema)', () => {
       const yaml = `
 version: "1.0"
 commands:
-  - command: invalid_command
+  - command: custom_command
     selector: "#test"
+    customField: "some-value"
 `;
 
-      expect(() => ConfigLoader.parseYaml(yaml)).toThrow();
+      // Generic schema should accept any command name
+      const config = ConfigLoader.parseYaml(yaml);
+      expect(config.commands[0].command).toBe('custom_command');
     });
 
     it('should throw error on empty commands array', () => {
@@ -132,40 +135,32 @@ commands: []
       expect(() => ConfigLoader.parseYaml(yaml)).toThrow();
     });
 
-    it('should validate fill command parameters', () => {
+    it('should preserve additional fields via passthrough', () => {
       const yaml = `
 version: "1.0"
 commands:
   - command: fill
     selector: "#email"
     value: "test@example.com"
+    clearFirst: true
 `;
 
-      expect(() => ConfigLoader.parseYaml(yaml)).not.toThrow();
+      const config = ConfigLoader.parseYaml(yaml);
+      const cmd = config.commands[0] as any;
+      expect(cmd.selector).toBe('#email');
+      expect(cmd.value).toBe('test@example.com');
+      expect(cmd.clearFirst).toBe(true);
     });
 
-    it('should validate wait command - timeout required', () => {
-      const yamlWithTimeout = `
+    it('should require command name on every command', () => {
+      const yaml = `
 version: "1.0"
 commands:
-  - command: wait
-    timeout: 1000
-`;
-      const yamlWithoutTimeout = `
-version: "1.0"
-commands:
-  - command: wait
-`;
-      const yamlWithSelector = `
-version: "1.0"
-commands:
-  - command: wait
-    selector: ".loading"
+  - selector: "#email"
+    value: "test"
 `;
 
-      expect(() => ConfigLoader.parseYaml(yamlWithTimeout)).not.toThrow();
-      expect(() => ConfigLoader.parseYaml(yamlWithoutTimeout)).toThrow();
-      expect(() => ConfigLoader.parseYaml(yamlWithSelector)).toThrow();
+      expect(() => ConfigLoader.parseYaml(yaml)).toThrow();
     });
   });
 
@@ -219,7 +214,7 @@ commands:
         version: '1.0',
         commands: [
           {
-            command: 'fill' as const,
+            command: 'fill',
             selector: '#email',
             value: 'test@example.com',
           },
@@ -269,7 +264,7 @@ commands:
         version: '1.0',
         commands: [
           {
-            command: 'fill' as const,
+            command: 'fill',
             selector: '#email',
             value: 'test@example.com',
           },
@@ -286,7 +281,7 @@ commands:
       const config = {
         version: '1',
         commands: [
-          { command: 'wait' as const, timeout: 100 },
+          { command: 'wait', timeout: 100 },
         ],
         settings: { timeout: 10000 },
       };

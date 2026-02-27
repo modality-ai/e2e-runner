@@ -5,7 +5,7 @@
 
 import { ConfigLoader } from './config-loader';
 import { executeOperation } from './index';
-import type { OperationConfig, ExecutionResult, Command } from './types';
+import type { OperationConfig, ExecutionResult, Command, BackendType } from './types';
 
 // ============================================================================
 // Context Interface
@@ -17,6 +17,7 @@ export interface OperatorCliContext {
   json?: boolean;
   verbose?: boolean;
   fetchOptions?: Record<string, any>;
+  backend?: BackendType;
 }
 
 // ============================================================================
@@ -75,18 +76,15 @@ export async function handleTest(
     // Build fetch options from context
     const fetchOptions = { ...ctx.fetchOptions };
 
-    // Merge config settings into fetch options (config takes precedence for remapping)
-    if (config.settings?.requestRemapping && !fetchOptions.requestRemapping) {
-      fetchOptions.requestRemapping = config.settings.requestRemapping;
-    }
-
     const window = await fetchFn(testUrl, fetchOptions);
 
     // Extract requestResult from window for session reuse
     const requestResult = (window as any).requestResult;
 
+    const backend = ctx.backend || 'happy-dom';
+
     const result = await executeOperation(
-      { backend: 'happy-dom', window, requestResult },
+      { backend, window, requestResult },
       ctx.configPath,
     );
 
@@ -103,11 +101,12 @@ export async function handleTest(
 export async function handleExecute(
   window: any,
   configOrCommands: any,
-  requestResult?: any
+  requestResult?: any,
+  backend?: BackendType,
 ): Promise<TestResult> {
   try {
     const result = await executeOperation(
-      { backend: 'happy-dom', window, requestResult },
+      { backend: backend || 'happy-dom', window, requestResult },
       configOrCommands,
     );
     return { success: result.success, result };

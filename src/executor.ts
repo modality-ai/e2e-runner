@@ -25,9 +25,6 @@ export class OperationExecutor {
     );
     logger.debug(`[EXECUTOR] Total commands: ${config.commands.length}`);
 
-    // Track current window (may change after navigate commands, happy-dom only)
-    let currentWindow = context.window;
-
     // Execute commands sequentially
     for (let i = 0; i < config.commands.length; i++) {
       const command = config.commands[i];
@@ -36,37 +33,8 @@ export class OperationExecutor {
         `[EXECUTOR] Executing command ${i + 1}/${config.commands.length}: ${command.command}`
       );
 
-      const result = await this.executeCommand(currentWindow, command, context, i);
+      const result = await this.executeCommand(context.window, command, context, i);
       context.results.push(result);
-
-      // Handle window replacement after navigate, click, or submit commands (happy-dom only)
-      if (context.backend === 'happy-dom' && result.success && (command.command === 'navigate' || command.command === 'click' || command.command === 'submit') && result.data?.newWindow) {
-        logger.debug(`[EXECUTOR] Replacing window after ${command.command} command`);
-
-        // Clean up old window
-        try {
-          if (currentWindow) {
-            await currentWindow.happyDOM.abort();
-          }
-        } catch {
-          // Ignore cleanup errors
-        }
-
-        currentWindow = result.data.newWindow;
-        context.window = currentWindow;
-
-        // Update requestResult from new window for session persistence
-        // Preserve remapper across window replacements (like baseUrl)
-        const previousRemapper = context.requestResult?.remapper;
-        if ((currentWindow as any)?.requestResult) {
-          context.requestResult = (currentWindow as any).requestResult;
-          // Restore remapper if the new window doesn't have one
-          if (previousRemapper && !context.requestResult.remapper) {
-            context.requestResult.remapper = previousRemapper;
-            logger.debug(`[EXECUTOR] Preserved remapper across window replacement`);
-          }
-        }
-      }
 
       if (!result.success) {
         logger.debug(`[EXECUTOR] Command ${i + 1} failed: ${result.error?.message}`);

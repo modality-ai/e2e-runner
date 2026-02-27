@@ -1,7 +1,6 @@
 /**
- * Type definitions for browser operation executor
- * Combines Zod-inferred types from schema.ts with runtime-only types
- * Supports both happy-dom and CDP (Chrome DevTools Protocol) backends
+ * Type definitions for operation executor
+ * Generic runtime types — no backend-specific or command-specific types
  */
 
 // ============================================================================
@@ -11,18 +10,10 @@
 export type {
   OperationConfig,
   Command,
-  NavigateCommand,
-  FillCommand,
-  ClickCommand,
-  WaitCommand,
-  SelectCommand,
-  SeeCommand,
-  SubmitCommand,
-  ProtectCookieCommand,
   Settings,
 } from './schema';
 
-import type { OperationConfig, Command, Settings } from './schema';
+import type { OperationConfig, Command } from './schema';
 
 /**
  * Flexible input type for executeOperation
@@ -61,7 +52,7 @@ export interface CdpBackendConfig {
 
 /**
  * Execution context passed to commands
- * Carries backend info so commands can work with happy-dom or CDP
+ * Carries backend info so commands can work with any backend
  */
 export interface ExecutionContext {
   /** Execution backend type */
@@ -91,8 +82,8 @@ export interface ExecutionContext {
   /** RequestResult from the initial page fetch (for session reuse in navigate commands) */
   requestResult?: any;
 
-  /** Window polyfills to apply before scripts run (e.g., CSP bypass for Kibana) */
-  windowPolyfills?: Record<string, any>;
+  /** Backend-specific settings passed through from config */
+  settings?: Record<string, any>;
 }
 
 /**

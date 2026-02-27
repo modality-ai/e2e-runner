@@ -1,6 +1,6 @@
 /**
- * Public API for the operator module
- * Single entry point: executeOperation({ backend, window, ... }, config)
+ * Public API for the e2e-runner module
+ * Single entry point: executeOperation({ backend, ... }, config)
  */
 
 import { OperationConfig, ExecutionContext, ExecutionResult, OperatorInput } from './types';
@@ -15,13 +15,6 @@ import { logger } from './logger';
 export type {
   OperationConfig,
   Command,
-  NavigateCommand,
-  FillCommand,
-  ClickCommand,
-  WaitCommand,
-  SelectCommand,
-  SeeCommand,
-  ProtectCookieCommand,
   Settings,
   ExecutionContext,
   CommandResult,
@@ -53,7 +46,7 @@ const DEFAULT_COMMAND_TIMEOUT = 5000;
 // ============================================================================
 
 /**
- * Execute browser operations with a consistent context-based API
+ * Execute operations with a consistent context-based API
  *
  * @param context - Partial ExecutionContext specifying backend and runtime state
  * @param input - OperationConfig object, Command[] array, or file path string
@@ -62,7 +55,7 @@ const DEFAULT_COMMAND_TIMEOUT = 5000;
  * @example happy-dom backend
  * executeOperation({ backend: 'happy-dom', window, requestResult }, config)
  *
- * @example CDP backend (when ready)
+ * @example CDP backend
  * executeOperation({ backend: 'cdp', cdp: { userDataDir, mcpType, execute } }, config)
  */
 export async function executeOperation(
@@ -82,12 +75,6 @@ export async function executeOperation(
 
   logger.debug(`[OPERATOR] Executing ${config.commands.length} commands (backend: ${context.backend || 'happy-dom'})`);
 
-  // Set auto-protect patterns on cookie jar if configured
-  if (context.requestResult?.cookieJar && config.settings?.autoProtectCookies) {
-    context.requestResult.cookieJar.setAutoProtectPatterns(config.settings.autoProtectCookies);
-    logger.debug(`[OPERATOR] Auto-protect cookies configured: ${config.settings.autoProtectCookies.length} patterns`);
-  }
-
   // Build full ExecutionContext with defaults from config
   const fullContext: ExecutionContext = {
     backend: context.backend || 'happy-dom',
@@ -99,7 +86,7 @@ export async function executeOperation(
     results: [],
     startTime: Date.now(),
     requestResult: context.requestResult,
-    windowPolyfills: context.windowPolyfills || config.settings?.windowPolyfills,
+    settings: config.settings,
   };
 
   const executor = new OperationExecutor();

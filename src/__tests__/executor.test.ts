@@ -91,17 +91,17 @@ describe('OperationExecutor Integration', () => {
         version: '1.0',
         commands: [
           {
-            command: 'fill' as const,
+            command: 'fill',
             selector: '#username',
             value: 'testuser',
           },
           {
-            command: 'fill' as const,
+            command: 'fill',
             selector: '#password',
             value: 'testpass',
           },
           {
-            command: 'click' as const,
+            command: 'click',
             selector: '#submit-btn',
           },
         ],
@@ -126,7 +126,7 @@ describe('OperationExecutor Integration', () => {
         version: '1.0',
         commands: [
           {
-            command: 'fill' as const,
+            command: 'fill',
             selector: '#nonexistent',
             value: 'test',
           },
@@ -148,12 +148,12 @@ describe('OperationExecutor Integration', () => {
         },
         commands: [
           {
-            command: 'fill' as const,
+            command: 'fill',
             selector: '#nonexistent',
             value: 'test',
           },
           {
-            command: 'click' as const,
+            command: 'click',
             selector: '#submit-btn',
           },
         ],
@@ -174,12 +174,12 @@ describe('OperationExecutor Integration', () => {
         },
         commands: [
           {
-            command: 'fill' as const,
+            command: 'fill',
             selector: '#nonexistent',
             value: 'test',
           },
           {
-            command: 'click' as const,
+            command: 'click',
             selector: '#submit-btn',
           },
         ],
@@ -199,7 +199,7 @@ describe('OperationExecutor Integration', () => {
         version: '1.0',
         commands: [
           {
-            command: 'wait' as const,
+            command: 'wait',
             timeout: 50, // Short wait for testing
           },
         ],
@@ -220,7 +220,7 @@ describe('OperationExecutor Integration', () => {
         version: '1.0',
         commands: [
           {
-            command: 'see' as const,
+            command: 'see',
             text: 'Success message',
             assertion: true,
           },
@@ -248,7 +248,7 @@ describe('OperationExecutor Integration', () => {
         version: '1.0',
         commands: [
           {
-            command: 'select' as const,
+            command: 'select',
             selector: '#country',
             value: 'uk',
           },
@@ -271,12 +271,12 @@ describe('OperationExecutor Integration', () => {
         name: 'Test Operation',
         commands: [
           {
-            command: 'fill' as const,
+            command: 'fill',
             selector: '#username',
             value: 'user1',
           },
           {
-            command: 'fill' as const,
+            command: 'fill',
             selector: '#password',
             value: 'pass1',
           },
@@ -291,6 +291,26 @@ describe('OperationExecutor Integration', () => {
       expect(result.results[0].commandIndex).toBe(0);
       expect(result.results[1].commandIndex).toBe(1);
       expect(result.duration).toBeGreaterThanOrEqual(0);
+    });
+  });
+
+  describe('unknown commands', () => {
+    it('should handle unregistered command gracefully', async () => {
+      const config = {
+        version: '1.0',
+        commands: [
+          {
+            command: 'nonexistent-command',
+            someArg: 'value',
+          },
+        ],
+      };
+
+      const result = await executeOperation({ backend: 'happy-dom', window }, config);
+
+      expect(result.success).toBe(false);
+      expect(result.results[0].error?.type).toBe('execution_error');
+      expect(result.results[0].error?.message).toContain('Unknown command type');
     });
   });
 });
