@@ -87,7 +87,7 @@ export class OperationExecutor {
     return {
       success: errorCount === 0,
       configName: config.name,
-      totalCommands: context.results.length,
+      totalCommands: config.commands.length,
       successCount,
       errorCount,
       duration,
