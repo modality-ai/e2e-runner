@@ -29,6 +29,23 @@ export class OperationExecutor {
     for (let i = 0; i < config.commands.length; i++) {
       const command = config.commands[i];
 
+      // Ansible-style `when:` — skip command if condition variable is falsy
+      if (command.when && typeof command.when === 'string') {
+        const conditionValue = context.variables[command.when];
+        if (!conditionValue) {
+          const skipResult: CommandResult = {
+            command: command.command,
+            commandIndex: i,
+            success: true,
+            duration: 0,
+            data: { skipped: true, when: command.when, description: command.description },
+          };
+          context.results.push(skipResult);
+          context.onStepComplete?.(skipResult);
+          continue;
+        }
+      }
+
       logger.debug(
         `[EXECUTOR] Executing command ${i + 1}/${config.commands.length}: ${command.command}`
       );
@@ -38,6 +55,7 @@ export class OperationExecutor {
       // Transparent commands (e.g. foreach) manage context.results themselves
       if (!(result as any).transparent) {
         context.results.push(result);
+        context.onStepComplete?.(result);
 
         // Ansible-style register: save meaningful value to context.variables
         if (result.success && command.register && typeof command.register === 'string') {

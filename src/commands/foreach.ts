@@ -21,10 +21,15 @@
 
 import { registerCommand, getCommandExecutor } from '../registry';
 
+/** Resolve a dot-notation path like "link.url" against an object */
+function getNestedValue(obj: any, path: string): any {
+  return path.split('.').reduce((curr, key) => curr?.[key], obj);
+}
+
 function interpolateVars(obj: any, vars: Record<string, any>): any {
   if (typeof obj === 'string') {
     return obj.replace(/\{\{\s*([\w.]+)\s*\}\}/g, (_match, key) => {
-      const val = vars[key];
+      const val = getNestedValue(vars, key);
       return val !== undefined ? String(val) : `{{ ${key} }}`;
     });
   }
@@ -97,6 +102,7 @@ registerCommand('foreach', async (_window, cmd, context, commandIndex) => {
 
       const result = await executor(_window ?? null, interpolated, context, context.results.length);
       context.results.push(result);
+      context.onStepComplete?.(result);
 
       if (!result.success) {
         allSuccess = false;

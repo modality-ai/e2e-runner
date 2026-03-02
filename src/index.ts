@@ -36,8 +36,8 @@ import './commands/debug';
 import './commands/foreach';
 
 // Re-export operator CLI handlers
-export { handleVerify, handleTest, formatVerifyOutput, formatTestOutput } from './cli';
-export type { OperatorCliContext, VerifyResult, TestResult } from './cli';
+export { handleVerify, handleTest, formatVerifyOutput, formatTestOutput, formatSuiteHeader, formatStepLine, formatSummaryBlock } from './cli';
+export type { OperatorCliContext, VerifyResult, TestResult, StepFailure } from './cli';
 
 // ============================================================================
 // Default command execution timeout (milliseconds)
@@ -92,6 +92,7 @@ export async function executeOperation(
     startTime: Date.now(),
     requestResult: context.requestResult,
     settings: config.settings,
+    onStepComplete: context.onStepComplete,
   };
 
   const executor = new OperationExecutor();

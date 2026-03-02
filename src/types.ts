@@ -57,6 +57,9 @@ export interface CdpBackendConfig {
 export interface ExecutionContext {
   /** Named variables stored by `register:` — Ansible-style result capture */
   variables: Record<string, any>;
+
+  /** Called immediately after each step completes — enables streaming output */
+  onStepComplete?: (result: CommandResult) => void;
   /** Execution backend type */
   backend: BackendType;
 

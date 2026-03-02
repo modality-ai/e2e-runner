@@ -5,7 +5,7 @@
 
 import { ConfigLoader } from './config-loader';
 import { executeOperation } from './index';
-import type { OperationConfig, ExecutionResult, Command, BackendType } from './types';
+import type { OperationConfig, ExecutionResult, CommandResult, Command, BackendType } from './types';
 
 // ============================================================================
 // Context Interface
@@ -166,6 +166,88 @@ export function formatVerifyOutput(result: VerifyResult, json: boolean): string 
   return `\u2717 Configuration is invalid\n\nError: ${result.error}`;
 }
 
+// ============================================================================
+// Mocha-style streaming formatters (exported for use by host CLIs)
+// ============================================================================
+
+const B = '\x1b[1m';
+const R = '\x1b[0m';
+const D = '\x1b[2m';
+const G = '\x1b[32m';
+const Re = '\x1b[31m';
+
+export interface StepFailure {
+  index: number;
+  desc: string;
+  error: string;
+}
+
+/** Format the suite header block (print once before streaming steps) */
+export function formatSuiteHeader(suiteName: string): string {
+  return `\n  ${B}${suiteName}${R}\n`;
+}
+
+/**
+ * Format a single step result line (+ any debug output below it).
+ * Mutates `state.failures` and increments `state.failIndex` on failure.
+ */
+export function formatStepLine(
+  res: CommandResult,
+  state: { failIndex: number; failures: StepFailure[] },
+): string {
+  const desc = (res.data as any)?.description || res.command;
+  const dur = res.duration !== undefined ? `${D}(${res.duration}ms)${R}` : '';
+  const lines: string[] = [];
+
+  if (res.success) {
+    lines.push(`    ${G}\u2713${R} ${desc} ${dur}`);
+  } else {
+    state.failIndex++;
+    lines.push(`    ${Re}${state.failIndex}) ${desc}${R}`);
+    state.failures.push({
+      index: state.failIndex,
+      desc,
+      error: res.error?.message || 'Unknown error',
+    });
+  }
+
+  // Ansible debug-style output below the step line
+  const stepOutput = (res.data as any)?.output;
+  if (stepOutput !== undefined && stepOutput !== null) {
+    const varName: string | undefined = (res.data as any)?.varName;
+    const raw = typeof stepOutput === 'string' ? stepOutput : JSON.stringify(stepOutput, null, 2);
+    if (varName) lines.push(`      ${D}${varName} =>${R}`);
+    raw.split('\n').forEach((line: string) => lines.push(`        ${D}${line}${R}`));
+  }
+
+  return lines.join('\n');
+}
+
+/** Format the summary + failure details block (print once after all steps) */
+export function formatSummaryBlock(
+  r: ExecutionResult,
+  failures: StepFailure[],
+  suiteName: string,
+): string {
+  const lines: string[] = [''];
+  if (r.successCount > 0) lines.push(`  ${G}${r.successCount} passing${R} ${D}(${r.duration}ms)${R}`);
+  if (r.errorCount > 0) lines.push(`  ${Re}${r.errorCount} failing${R}`);
+  if (failures.length > 0) {
+    lines.push('');
+    failures.forEach(({ index, desc, error }) => {
+      lines.push(`  ${index}) ${suiteName}`);
+      lines.push(`       ${desc}:`);
+      lines.push(`       ${Re}${error}${R}`);
+      lines.push('');
+    });
+  }
+  return lines.join('\n');
+}
+
+// ============================================================================
+// All-in-one formatter (non-streaming, preserves existing API)
+// ============================================================================
+
 /**
  * Format test output for display — Mocha-style layout
  */
@@ -182,79 +264,14 @@ export function formatTestOutput(result: TestResult, verbose: boolean, json: boo
   }
 
   const r = result.result;
-
-  // ANSI codes
-  const B = '\x1b[1m';   // bold
-  const R = '\x1b[0m';   // reset
-  const D = '\x1b[2m';   // dim
-  const G = '\x1b[32m';  // green
-  const Re = '\x1b[31m'; // red
-
-  const lines: string[] = [];
-
-  // Suite header — config name or fallback
   const suiteName = result.config?.name || result.config?.description || 'E2E Test';
-  lines.push('');
-  lines.push(`  ${B}${suiteName}${R}`);
-  lines.push('');
+  const state = { failIndex: 0, failures: [] as StepFailure[] };
 
-  // Per-step lines
-  let failIndex = 0;
-  const failures: Array<{ index: number; desc: string; error: string }> = [];
-
-  r.results.forEach((res) => {
-    const desc = (res.data as any)?.description || res.command;
-    const dur = res.duration !== undefined ? `${D}(${res.duration}ms)${R}` : '';
-
-    if (res.success) {
-      lines.push(`    ${G}\u2713${R} ${desc} ${dur}`);
-    } else {
-      failIndex++;
-      lines.push(`    ${Re}${failIndex}) ${desc}${R}`);
-      failures.push({
-        index: failIndex,
-        desc,
-        error: res.error?.message || 'Unknown error',
-      });
-    }
-
-    // Render step output after the ✓ line — Ansible debug style
-    // Only data.output is shown; set explicitly by the debug command
-    const stepOutput = (res.data as any)?.output;
-    if (stepOutput !== undefined && stepOutput !== null) {
-      const varName: string | undefined = (res.data as any)?.varName;
-      const raw = typeof stepOutput === 'string' ? stepOutput : JSON.stringify(stepOutput, null, 2);
-      if (varName) {
-        lines.push(`      ${D}${varName} =>${R}`);
-      }
-      const formatted = raw
-        .split('\n')
-        .map((line: string) => `        ${D}${line}${R}`)
-        .join('\n');
-      lines.push(formatted);
-    }
-  });
-
-  lines.push('');
-
-  // Summary
-  if (r.successCount > 0) {
-    lines.push(`  ${G}${r.successCount} passing${R} ${D}(${r.duration}ms)${R}`);
-  }
-  if (r.errorCount > 0) {
-    lines.push(`  ${Re}${r.errorCount} failing${R}`);
-  }
-
-  // Failure details
-  if (failures.length > 0) {
-    lines.push('');
-    failures.forEach(({ index, desc, error }) => {
-      lines.push(`  ${index}) ${suiteName}`);
-      lines.push(`       ${desc}:`);
-      lines.push(`       ${Re}${error}${R}`);
-      lines.push('');
-    });
-  }
+  const lines: string[] = [
+    formatSuiteHeader(suiteName),
+    ...r.results.map((res) => formatStepLine(res, state)),
+    formatSummaryBlock(r, state.failures, suiteName),
+  ];
 
   return lines.join('\n');
 }
