@@ -167,7 +167,7 @@ export function formatVerifyOutput(result: VerifyResult, json: boolean): string 
 }
 
 /**
- * Format test output for display
+ * Format test output for display — Mocha-style layout
  */
 export function formatTestOutput(result: TestResult, verbose: boolean, json: boolean): string {
   if (json) {
@@ -182,49 +182,78 @@ export function formatTestOutput(result: TestResult, verbose: boolean, json: boo
   }
 
   const r = result.result;
+
+  // ANSI codes
+  const B = '\x1b[1m';   // bold
+  const R = '\x1b[0m';   // reset
+  const D = '\x1b[2m';   // dim
+  const G = '\x1b[32m';  // green
+  const Re = '\x1b[31m'; // red
+
   const lines: string[] = [];
 
-  if (verbose) {
-    lines.push('');
-    lines.push('='.repeat(60));
-  }
+  // Suite header — config name or fallback
+  const suiteName = result.config?.name || result.config?.description || 'E2E Test';
+  lines.push('');
+  lines.push(`  ${B}${suiteName}${R}`);
+  lines.push('');
 
-  if (r.success) {
-    lines.push(`\u2705 Test PASSED`);
-  } else {
-    lines.push(`\u274C Test FAILED`);
-  }
+  // Per-step lines
+  let failIndex = 0;
+  const failures: Array<{ index: number; desc: string; error: string }> = [];
 
-  lines.push(`   Steps: ${r.successCount}/${r.totalCommands} succeeded`);
-  lines.push(`   Duration: ${r.duration}ms`);
+  r.results.forEach((res) => {
+    const desc = (res.data as any)?.description || res.command;
+    const dur = res.duration !== undefined ? `${D}(${res.duration}ms)${R}` : '';
 
-  if (!r.success) {
-    lines.push('\n\u274C Failed steps:');
-    r.results
-      .filter((res) => !res.success)
-      .forEach((res) => {
-        const desc = (res.data as any)?.description || res.command;
-        lines.push(`   [Step ${res.commandIndex + 1}] ${desc}`);
-        lines.push(`      Error: ${res.error?.message}`);
+    if (res.success) {
+      lines.push(`    ${G}\u2713${R} ${desc} ${dur}`);
+    } else {
+      failIndex++;
+      lines.push(`    ${Re}${failIndex}) ${desc}${R}`);
+      failures.push({
+        index: failIndex,
+        desc,
+        error: res.error?.message || 'Unknown error',
       });
+    }
+
+    // Render step output after the ✓ line — Ansible debug style
+    // Only data.output is shown; set explicitly by the debug command
+    const stepOutput = (res.data as any)?.output;
+    if (stepOutput !== undefined && stepOutput !== null) {
+      const varName: string | undefined = (res.data as any)?.varName;
+      const raw = typeof stepOutput === 'string' ? stepOutput : JSON.stringify(stepOutput, null, 2);
+      if (varName) {
+        lines.push(`      ${D}${varName} =>${R}`);
+      }
+      const formatted = raw
+        .split('\n')
+        .map((line: string) => `        ${D}${line}${R}`)
+        .join('\n');
+      lines.push(formatted);
+    }
+  });
+
+  lines.push('');
+
+  // Summary
+  if (r.successCount > 0) {
+    lines.push(`  ${G}${r.successCount} passing${R} ${D}(${r.duration}ms)${R}`);
+  }
+  if (r.errorCount > 0) {
+    lines.push(`  ${Re}${r.errorCount} failing${R}`);
   }
 
-  if (verbose) {
-    lines.push('='.repeat(60));
+  // Failure details
+  if (failures.length > 0) {
     lines.push('');
-    lines.push('\uD83D\uDCCA Step Details:');
-    r.results.forEach((res) => {
-      const status = res.success ? '\u2713' : '\u2717';
-      const desc = (res.data as any)?.description || res.command;
-      lines.push(`   ${status} [${res.commandIndex + 1}] ${res.command}: ${desc}`);
-      if (res.duration !== undefined) {
-        lines.push(`      Time: ${res.duration}ms`);
-      }
-      if (!res.success && res.error) {
-        lines.push(`      Error: ${res.error.message}`);
-      }
+    failures.forEach(({ index, desc, error }) => {
+      lines.push(`  ${index}) ${suiteName}`);
+      lines.push(`       ${desc}:`);
+      lines.push(`       ${Re}${error}${R}`);
+      lines.push('');
     });
-    lines.push('');
   }
 
   return lines.join('\n');

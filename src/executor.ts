@@ -34,7 +34,18 @@ export class OperationExecutor {
       );
 
       const result = await this.executeCommand(context.window, command, context, i);
-      context.results.push(result);
+
+      // Transparent commands (e.g. foreach) manage context.results themselves
+      if (!(result as any).transparent) {
+        context.results.push(result);
+
+        // Ansible-style register: save meaningful value to context.variables
+        if (result.success && command.register && typeof command.register === 'string') {
+          const data = result.data as any;
+          context.variables[command.register] =
+            data?.output ?? data?.result?.result ?? data?.result ?? data;
+        }
+      }
 
       if (!result.success) {
         logger.debug(`[EXECUTOR] Command ${i + 1} failed: ${result.error?.message}`);
@@ -58,7 +69,7 @@ export class OperationExecutor {
     return {
       success: errorCount === 0,
       configName: config.name,
-      totalCommands: config.commands.length,
+      totalCommands: context.results.length,
       successCount,
       errorCount,
       duration,

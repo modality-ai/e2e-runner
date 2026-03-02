@@ -55,6 +55,8 @@ export interface CdpBackendConfig {
  * Carries backend info so commands can work with any backend
  */
 export interface ExecutionContext {
+  /** Named variables stored by `register:` — Ansible-style result capture */
+  variables: Record<string, any>;
   /** Execution backend type */
   backend: BackendType;
 

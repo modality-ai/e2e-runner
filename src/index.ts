@@ -31,6 +31,10 @@ export { ConfigLoader } from './config-loader';
 export { registerCommand, getCommandExecutor, getRegisteredCommands } from './registry';
 export type { CommandExecutorFn } from './registry';
 
+// Built-in commands (auto-registered as side effects)
+import './commands/debug';
+import './commands/foreach';
+
 // Re-export operator CLI handlers
 export { handleVerify, handleTest, formatVerifyOutput, formatTestOutput } from './cli';
 export type { OperatorCliContext, VerifyResult, TestResult } from './cli';
@@ -84,6 +88,7 @@ export async function executeOperation(
     timeout: context.timeout || config.settings?.timeout || DEFAULT_COMMAND_TIMEOUT,
     continueOnError: context.continueOnError ?? config.settings?.continueOnError ?? false,
     results: [],
+    variables: {},
     startTime: Date.now(),
     requestResult: context.requestResult,
     settings: config.settings,
