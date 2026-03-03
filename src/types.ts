@@ -39,6 +39,9 @@ export interface CdpBackendConfig {
   /** Chrome user data directory */
   userDataDir?: string;
 
+  /** Browser debug base URL override (e.g. http://remote-host:9222) */
+  browserUrl?: string;
+
   /** MCP transport type */
   mcpType?: 'stdio' | 'http';
 
