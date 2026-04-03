@@ -147,7 +147,7 @@ export function formatVerifyOutput(result: VerifyResult, json: boolean): string 
     lines.push(`\u2713 Configuration is valid`);
     lines.push(`  File: (validated)`);
     if (result.config.name) lines.push(`  Name: ${result.config.name}`);
-    lines.push(`  Version: ${result.config.version}`);
+    if (result.config.version) lines.push(`  Version: ${result.config.version}`);
     lines.push(`  Commands: ${result.config.commands.length}`);
     lines.push(`\nCommand breakdown:`);
 

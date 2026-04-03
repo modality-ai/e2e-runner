@@ -37,7 +37,7 @@ export const CommandSchema = z.object({
  * Top-level operation configuration schema
  */
 export const OperationConfigSchema = z.object({
-  version: z.string().min(1, 'version cannot be empty'),
+  version: z.string().min(1).optional(),
   name: z.string().optional(),
   description: z.string().optional(),
   settings: SettingsSchema,
